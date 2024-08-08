@@ -208,6 +208,10 @@ M.setup = function(opts)
 		end
 	end
 
+	vim.api.nvim_create_user_command("GpRebuildIndex", function(_)
+		require("gp.context").index_all()
+	end, {})
+
 	M.buf_handler()
 
 	if vim.fn.executable("curl") == 0 then
@@ -824,15 +828,20 @@ M.cmd.ChatNew = function(params, system_prompt, agent)
 	end
 
 	-- if chat toggle is open, close it and start a new one
+	local buf
 	if M._toggle_close(M._toggle_kind.chat) then
 		params.args = params.args or ""
 		if params.args == "" then
 			params.args = M.config.toggle_target
 		end
-		return M.new_chat(params, true, system_prompt, agent)
+		buf = M.new_chat(params, true, system_prompt, agent)
+	else
+		buf = M.new_chat(params, false, system_prompt, agent)
 	end
 
-	return M.new_chat(params, false, system_prompt, agent)
+	require("gp.context").setup_for_chat_buffer(buf)
+
+	return buf
 end
 
 ---@param params table
@@ -853,16 +862,22 @@ M.cmd.ChatToggle = function(params, system_prompt, agent)
 	end
 
 	-- if the range is 2, we want to create a new chat file with the selection
+	local buf
 	if params.range ~= 2 then
 		local last = M._state.last_chat
 		if last and vim.fn.filereadable(last) == 1 then
 			last = vim.fn.resolve(last)
-			M.open_buf(last, M.resolve_buf_target(params), M._toggle_kind.chat, true)
-			return
+			buf = M.open_buf(last, M.resolve_buf_target(params), M._toggle_kind.chat, true)
 		end
+	else
+		buf = M.new_chat(params, true, system_prompt, agent)
 	end
 
-	M.new_chat(params, true, system_prompt, agent)
+	if buf then
+		require("gp.context").setup_for_chat_buffer(buf)
+	end
+
+	return buf
 end
 
 M.cmd.ChatPaste = function(params)
@@ -1073,6 +1088,10 @@ M.chat_respond = function(params)
 	-- write assistant prompt
 	local last_content_line = M.helpers.last_content_line(buf)
 	vim.api.nvim_buf_set_lines(buf, last_content_line, last_content_line, false, { "", agent_prefix .. agent_suffix, "" })
+
+	-- insert requested context in the message the user just entered
+	messages[#messages].content = require("gp.context").insert_contexts(messages[#messages].content)
+	-- print(vim.inspect(messages[#messages]))
 
 	-- call the model and write response
 	M.dispatcher.query(
