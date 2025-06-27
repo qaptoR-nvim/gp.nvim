@@ -187,6 +187,12 @@ D.prepare_payload = function(messages, model, provider)
 		output.stream = false
 	end
 
+	if provider == "openai" and model.model:match("[%w-]*mini$") then
+		-- remove max_tokens, top_p, temperature for mini models. https://platform.openai.com/docs/guides/reasoning/beta-limitations
+		output.max_completion_tokens = output.max_tokens
+		output.max_tokens = nil
+	end
+
 	return output
 end
 
