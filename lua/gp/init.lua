@@ -935,6 +935,23 @@ M.cmd.ChatDelete = function()
 	end)
 end
 
+local function filter_empty_messages(messages, provider)
+	-- For Anthropic, filter empty contents except final assistant msg
+	if provider == "anthropic" then
+		local filtered = {}
+		-- final message can be assistant with empty content (per Anthropic)
+		local last_role = messages[#messages] and messages[#messages].role
+		for idx, msg in ipairs(messages) do
+			-- allow assistant with empty content *only if it's the last message*
+			if (msg.content and msg.content:match("%S")) or (idx == #messages and msg.role == "assistant") then
+				table.insert(filtered, msg)
+			end
+		end
+		return filtered
+	end
+	return messages
+end
+
 M.chat_respond = function(params)
 	local buf = vim.api.nvim_get_current_buf()
 	local win = vim.api.nvim_get_current_win()
@@ -1074,6 +1091,8 @@ M.chat_respond = function(params)
 		message.content = message.content:gsub("^%s*(.-)%s*$", "%1")
 		message.content = require("gp.context").insert_contexts(message.content)
 	end
+
+	messages = filter_empty_messages(messages, headers.provider or agent.provider)
 
 	-- write assistant prompt
 	local last_content_line = M.helpers.last_content_line(buf)
