@@ -138,19 +138,24 @@ end
 
 source.complete = function(self, request, callback)
 	local input = string.sub(request.context.cursor_before_line, request.offset - 1)
-	print("[comp] input: '" .. input .. "'")
+	-- print("[comp] input: '" .. input .. "'")
 	local cmd = extract_cmd(request)
 	if not cmd then
 		return
 	end
 
-	print("[comp] cmd: '" .. cmd .. "'")
+	-- print("[comp] cmd: '" .. cmd .. "'")
 	local cmd_parts = context.cmd_split(cmd)
 
 	local items = {}
 	local isIncomplete = true
 
-	if cmd_parts[1]:match("@file") then
+	if
+		cmd_parts[1]:match("@text")
+		or cmd_parts[1]:match("@code")
+		or cmd_parts[1]:match("@textdir")
+		or cmd_parts[1]:match("@codedir")
+	then
 		-- What's the path we're trying to provide completion for?
 		local path = cmd_parts[2]
 
@@ -160,39 +165,25 @@ source.complete = function(self, request, callback)
 		-- Say that the entire list has been provided
 		-- cmp won't call us again to provide an updated list
 		isIncomplete = false
-	elseif input:match("^@code:") then
-		print("[complete] @code: case")
-		local parts = vim.split(input, ":", { plain = true })
-		if #parts == 1 then
-			items = {
-				{ label = "filename1.lua", kind = require("cmp").lsp.CompletionItemKind.File },
-				{ label = "filename2.lua", kind = require("cmp").lsp.CompletionItemKind.File },
-				{ label = "function1", kind = require("cmp").lsp.CompletionItemKind.Function },
-				{ label = "function2", kind = require("cmp").lsp.CompletionItemKind.Function },
-			}
-		elseif #parts == 2 then
-			items = {
-				{ label = "function1", kind = require("cmp").lsp.CompletionItemKind.Function },
-				{ label = "function2", kind = require("cmp").lsp.CompletionItemKind.Function },
-			}
-		end
 	elseif input:match("^@") then
-		print("[complete] @ case")
+		-- print("[complete] @ case")
 		items = {
 			{ label = "code", kind = require("cmp").lsp.CompletionItemKind.Keyword },
-			{ label = "file", kind = require("cmp").lsp.CompletionItemKind.Keyword },
+			{ label = "codedir", kind = require("cmp").lsp.CompletionItemKind.Keyword },
+			{ label = "text", kind = require("cmp").lsp.CompletionItemKind.Keyword },
+			{ label = "textdir", kind = require("cmp").lsp.CompletionItemKind.Keyword },
 		}
 		isIncomplete = false
 	else
-		print("[complete] default case")
+		-- print("[complete] default case")
 		isIncomplete = false
 	end
 
 	local data = { items = items, isIncomplete = isIncomplete }
-	print("[complete] Callback data:")
-	print(vim.inspect(data))
+	-- print("[complete] Callback data:")
+	-- print(vim.inspect(data))
 	callback(data)
-	print("[complete] Callback called")
+	-- print("[complete] Callback called")
 end
 
 source.setup_autocmd_for_markdown()
