@@ -311,8 +311,10 @@ local query = function(buf, provider, payload, handler, on_exit, callback)
 					and raw_response:match("choices")
 					and raw_response:match("content")
 				then
-					local response = vim.json.decode(raw_response)
-					if
+					local ok, response = pcall(vim.json.decode, raw_response)
+					if not ok then
+						content = raw_response
+					elseif
 						response.choices
 						and response.choices[1]
 						and response.choices[1].message
