@@ -309,22 +309,27 @@ local query = function(buf, provider, payload, handler, on_exit, callback)
 					qt.provider == "openai"
 					and content == ""
 					and raw_response:match("choices")
+					and raw_response:match("delta")
 					and raw_response:match("content")
 				then
-					local ok, response = pcall(vim.json.decode, raw_response)
-					if not ok then
-						content = raw_response
-					elseif
-						response.choices
-						and response.choices[1]
-						and response.choices[1].message
-						and response.choices[1].message.content
-					then
-						content = response.choices[1].message.content
-					end
-					if content and type(content) == "string" then
-						qt.response = qt.response .. content
-						handler(qid, content)
+					local responses = vim.split(raw_response, "\n")
+					for _, response in ipairs(responses) do
+						response = response:gsub("^data: ", "")
+						local ok, data = pcall(vim.json.decode, response)
+						if not ok then
+							logger.error(qt.provider .. " response is not valid JSON: \n" .. response)
+						elseif
+							data.choices
+							and data.choices[1]
+							and data.choices[1].delta
+							and data.choices[1].delta.content
+						then
+							content = content .. data.choices[1].delta.content
+						end
+						if content and type(content) == "string" then
+							qt.response = qt.response .. content
+							handler(qid, content)
+						end
 					end
 				end
 
