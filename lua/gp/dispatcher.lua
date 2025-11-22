@@ -156,7 +156,7 @@ D.prepare_payload = function(messages, model, provider)
 			system = system,
 			max_tokens = model.max_tokens or 4096,
 			temperature = math.max(0, math.min(2, model.temperature or 1)),
-			-- top_p = math.max(0, math.min(1, model.top_p or 1)),
+			top_p = math.max(0, math.min(1, model.top_p or 1)),
 		}
 		return payload
 	end
@@ -264,9 +264,18 @@ local query = function(buf, provider, payload, handler, on_exit, callback)
 					end
 				end
 
+				-- if qt.provider == "googleai" or qt.provider == "googleai_free" then
+				-- 	if line:match('"text":') then
+				-- 		content = vim.json.decode("{" .. line .. "}").text
+				-- 	end
+				-- end
 				if qt.provider == "googleai" or qt.provider == "googleai_free" then
-					if line:match('"text":') then
-						content = vim.json.decode("{" .. line .. "}").text
+					local ok, obj = pcall(vim.json.decode, "{" .. line .. "}")
+					if ok and obj and obj.text then
+						content = obj.text
+					else
+						-- Log or handle parse failure
+						-- print("Failed to parse line: " .. line)
 					end
 				end
 
